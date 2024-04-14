@@ -86,16 +86,16 @@ CREATE TABLE RegistroPedidos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cliente_id INTEGER,
     fecha_registro DATE NOT NULL DEFAULT (strftime('%Y-%m-%d', 'now')),
-    FOREIGN KEY (cliente_id) REFERENCES Cliente(id),
+    FOREIGN KEY (cliente_id) REFERENCES Cliente(id)
 );
 -- Regla de negocio: máximo 5 pedidos por cliente
 CREATE TRIGGER limit_pedidos_before_insert
 BEFORE INSERT ON RegistroPedidos
 FOR EACH ROW
 BEGIN
-    SELECT CASE 
-        WHEN (SELECT COUNT(*) FROM Pedido WHERE cliente_id = NEW.cliente_id) >= 5
-        THEN
-            RAISE(ABORT, 'No se pueden agregar más de 5 pedidos por cliente')
-    END;
+    -- Lanzar un error si el cliente ya tiene 5 o más pedidos
+    SELECT RAISE(ABORT, 'No se pueden agregar más de 5 pedidos por cliente')
+    FROM Pedido
+    WHERE cliente_id = NEW.cliente_id
+    HAVING COUNT(*) >= 5;
 END;
