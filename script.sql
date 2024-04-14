@@ -81,36 +81,21 @@ CREATE TABLE DireccionEntrega (
     FOREIGN KEY (cliente_id) REFERENCES Cliente(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- Regla de negocio: máximo 5 pedidos por cliente
+-- Tabla de registro de pedidos
 CREATE TABLE RegistroPedidos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cliente_id INTEGER,
     fecha_registro DATE NOT NULL DEFAULT (strftime('%Y-%m-%d', 'now')),
     FOREIGN KEY (cliente_id) REFERENCES Cliente(id),
-    CHECK (
-        (
-            SELECT
-                COUNT(*)
-            FROM
-                Pedido
-            WHERE
-                Pedido.cliente_id = RegistroPedidos.cliente_id
-        ) <= 5
-    )
 );
-
--- Intentar insertar un sexto pedido para un cliente y capturar el error
-BEGIN;
-
-INSERT INTO
-    RegistroPedidos (cliente_id)
-VALUES
-    (1);
-
-EXCEPTION
-WHEN CHECK constraint_error THEN
-SELECT
-    'No se pueden agregar más de 5 pedidos por cliente';
+-- Regla de negocio: máximo 5 pedidos por cliente
+CREATE TRIGGER limit_pedidos_before_insert
+BEFORE INSERT ON RegistroPedidos
+FOR EACH ROW
+BEGIN
+    SELECT CASE 
+        WHEN (SELECT COUNT(*) FROM Pedido WHERE cliente_id = NEW.cliente_id) >= 5
+        THEN
+            RAISE(ABORT, 'No se pueden agregar más de 5 pedidos por cliente')
+    END;
 END;
-
-COMMIT;
