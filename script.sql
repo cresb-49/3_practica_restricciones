@@ -6,27 +6,6 @@ CREATE TABLE Cliente (
     telefono TEXT
 );
 
--- Ingresar 10 tuplas con 5 valores nulos en el campo de teléfono
-INSERT INTO
-    Cliente (nombre, correo_electronico, telefono)
-VALUES
-    ('Juan Pérez', 'juan@example.com', '123456789'),
-    ('María García', 'maria@example.com', '987654321'),
-    ('Luis González', 'luis@example.com', '456789123'),
-    ('Ana Martínez', 'ana@example.com', '321654987'),
-    ('Pedro Rodríguez', 'pedro@example.com','654987321'),
-    ('Sofía López', 'sofia@example.com', NULL),
-    ('Carlos Sánchez', 'carlos@example.com', NULL),
-    ('Laura Díaz', 'laura@example.com', NULL),
-    ('Miguel Ramírez', 'miguel@example.com', NULL),
-    ('Elena Torres', 'elena@example.com', NULL);
-
--- Intentar insertar un cliente sin correo electrónico (fallará)
-INSERT INTO
-    Cliente (nombre, telefono)
-VALUES
-    ('Roberto Jiménez', '123456789');
-
 -- Tabla de pedidos con llave primaria que puede ser nula
 CREATE TABLE Pedido (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,17 +64,28 @@ CREATE TABLE DireccionEntrega (
 CREATE TABLE RegistroPedidos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cliente_id INTEGER,
+    id_pedido INTEGER NOT NULL,
     fecha_registro DATE NOT NULL DEFAULT (strftime('%Y-%m-%d', 'now')),
-    FOREIGN KEY (cliente_id) REFERENCES Cliente(id)
+    FOREIGN KEY (cliente_id) REFERENCES Cliente(id),
+    FOREIGN KEY (id_pedido) REFERENCES Pedido(id)
 );
+
 -- Regla de negocio: máximo 5 pedidos por cliente
-CREATE TRIGGER limit_pedidos_before_insert
-BEFORE INSERT ON RegistroPedidos
-FOR EACH ROW
-BEGIN
-    -- Lanzar un error si el cliente ya tiene 5 o más pedidos
-    SELECT RAISE(ABORT, 'No se pueden agregar más de 5 pedidos por cliente')
-    FROM Pedido
-    WHERE cliente_id = NEW.cliente_id
-    HAVING COUNT(*) >= 5;
+CREATE TRIGGER limit_pedidos_before_insert BEFORE
+INSERT
+    ON RegistroPedidos FOR EACH ROW BEGIN -- Verificar si el cliente ya tiene 5 o más pedidos
+SELECT
+    RAISE(
+        ABORT,
+        'No se pueden agregar más de 5 pedidos simultaneos por cliente'
+    )
+FROM
+    RegistroPedidos
+WHERE
+    cliente_id = NEW.cliente_id
+GROUP BY
+    cliente_id
+HAVING
+    COUNT(*) >= 5;
+
 END;
